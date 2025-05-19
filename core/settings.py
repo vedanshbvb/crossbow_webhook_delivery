@@ -173,6 +173,11 @@ AUTHENTICATION_BACKENDS = [
 CORS_ALLOW_ALL_ORIGINS = True  # Only for development
 CORS_ALLOW_CREDENTIALS = True
 
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    'https://crossbowimg-616137423630.asia-south2.run.app',
+]
+
 # Login URL configuration
 LOGIN_URL = '/login/'
 # LOGIN_URL = '/'
