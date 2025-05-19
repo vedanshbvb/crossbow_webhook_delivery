@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Delivery Logs</h2>
+    <a href="/facilities/" class="btn btn-link mb-3">&larr; Back to Facilities</a>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Delivery ID</th>
+                    <th>Subscription ID</th>
+                    <th>Target URL</th>
+                    <th>Timestamp</th>
+                    <th>Attempt #</th>
+                    <th>Outcome</th>
+                    <th>HTTP Status</th>
+                    <th>Error Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>
+                        {{ log.id }}
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('{{ log.id }}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </td>
+                    <td>
+                        {{ log.subscription.subscription_id }}
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('{{ log.subscription.subscription_id }}')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </td>
+                    <td>{{ log.subscription.target_url }}</td>
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.attempt_number }}</td>
+                    <td>
+                        {% if log.status == 'Success' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif log.status == 'Queued' %}
+                            <span class="badge bg-info">Queued</span>
+                        {% elif log.status == 'Failure' and log.attempt_number > 1 %}
+                            <span class="badge bg-warning">Failed Attempt</span>
+                        {% else %}
+                            <span class="badge bg-danger">Failure</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.http_status_code|default:"-" }}</td>
+                    <td>{{ log.error_details|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center">No logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show a temporary success message
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+        }, 2000);
+    });
+}
+</script>
+{% endblock %} 

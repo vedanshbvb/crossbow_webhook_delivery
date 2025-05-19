@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- View Logs Button -->
+    <div class="d-flex justify-content-end mb-3">
+        <a href="/logs/" class="btn btn-secondary">View Logs</a>
+    </div>
+
+    <!-- User ID Display -->
+    <div class="alert alert-info mb-4">
+        <h4 class="alert-heading">Your User ID</h4>
+        <p class="mb-0">
+            <strong>ID:</strong> <span id="userIdDisplay">{{ user_id }}</span>
+            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyUserId()">
+                <i class="fas fa-copy"></i> Copy
+            </button>
+        </p>
+        <small class="text-muted">Keep this ID handy for creating subscriptions</small>
+    </div>
+
+    <div class="row">
+        <!-- Create Subscription Block -->
+        <div class="col-md-4">
+            <div class="block">
+                <h3>Create Subscription</h3>
+                <form id="createSubscriptionForm">
+                    <div class="mb-3">
+                        <label for="userId" class="form-label">User ID</label>
+                        <input type="text" class="form-control" id="userId" value="{{ user_id }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="targetUrl" class="form-label">Target URL</label>
+                        <input type="url" class="form-control" id="targetUrl" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventTypes" class="form-label">Event Types (comma-separated)</label>
+                        <input type="text" class="form-control" id="eventTypes" placeholder="e.g., order.created, user.updated" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Subscription</button>
+                </form>
+                <div id="subscriptionOutput" class="output-box" style="display: none;">
+                    <div class="alert alert-info">
+                        <h5>Subscription Created</h5>
+                        <p class="mb-0">
+                            <strong>Subscription ID:</strong> <span id="subId"></span>
+                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copySubscriptionId()">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </p>
+                        <small class="text-muted">Use this ID to send payloads</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Send Payload Block -->
+        <div class="col-md-4">
+            <div class="block">
+                <h3>Send Payload</h3>
+                <form id="sendPayloadForm">
+                    <div class="mb-3">
+                        <label for="subId" class="form-label">Subscription ID</label>
+                        <input type="text" class="form-control" id="payloadSubId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventType" class="form-label">Event Type</label>
+                        <input type="text" class="form-control" id="eventType" placeholder="e.g., order.created" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send Payload</button>
+                </form>
+                <div id="payloadOutput" class="output-box" style="display: none;">
+                    <div class="alert alert-info">
+                        <h5>Payload Queued for Delivery</h5>
+                        <p class="mb-0">
+                            <strong>Delivery ID:</strong> <span id="deliveryId"></span>
+                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyDeliveryId()">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </p>
+                        <small class="text-muted">Use this ID to check delivery status</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Check Delivery Status Block -->
+        <div class="col-md-4">
+            <div class="block">
+                <h3>Check Delivery Status</h3>
+                <form id="checkStatusForm">
+                    <div class="mb-3">
+                        <label for="deliveryId" class="form-label">Delivery ID</label>
+                        <input type="text" class="form-control" id="statusDeliveryId" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Check Status</button>
+                </form>
+                <div id="statusOutput" class="output-box" style="display: none;">
+                    <strong>Status:</strong> <span id="deliveryStatus"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- View Attempts for Delivery ID Block -->
+        <div class="col-md-6">
+            <div class="block">
+                <h3>View Attempts for Delivery ID</h3>
+                <form id="viewAttemptsDeliveryForm">
+                    <div class="mb-3">
+                        <label for="attemptsDeliveryId" class="form-label">Delivery ID</label>
+                        <input type="text" class="form-control" id="attemptsDeliveryId" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">View</button>
+                </form>
+                <div id="attemptsDeliveryOutput" class="output-box mt-2" style="display: none;"></div>
+            </div>
+        </div>
+        <!-- View Attempts for Sub ID Block -->
+        <div class="col-md-6">
+            <div class="block">
+                <h3>View Attempts for Sub ID</h3>
+                <form id="viewAttemptsSubForm">
+                    <div class="mb-3">
+                        <label for="attemptsSubId" class="form-label">Subscription ID</label>
+                        <input type="text" class="form-control" id="attemptsSubId" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">View</button>
+                </form>
+                <div id="attemptsSubOutput" class="output-box mt-2" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Get CSRF token from cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Setup AJAX to include CSRF token
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
+    });
+
+    // Create Subscription
+    $('#createSubscriptionForm').on('submit', function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: '/api/subscriptions/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                user_id: $('#userId').val(),
+                target_url: $('#targetUrl').val(),
+                event_types: $('#eventTypes').val()
+            }),
+            xhrFields: {
+                withCredentials: true
+            },
+            success: function(response) {
+                $('#subId').text(response.id);
+                $('#subscriptionOutput').show();
+            },
+            error: function(xhr) {
+                alert('Failed to create subscription: ' + JSON.stringify(xhr.responseJSON));
+            }
+        });
+    });
+
+    // Send Payload
+    $('#sendPayloadForm').on('submit', function(e) {
+        e.preventDefault();
+        const submitButton = $(this).find('button[type="submit"]');
+        const originalButtonText = submitButton.html();
+        
+        // Disable button and show loading state
+        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Sending...');
+        
+        $.ajax({
+            url: '/api/ingest/' + $('#payloadSubId').val() + '/',
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-Event-Type': $('#eventType').val()
+            },
+            data: JSON.stringify({
+                data: { key: 'value' }
+            }),
+            xhrFields: {
+                withCredentials: true
+            },
+            success: function(response) {
+                $('#deliveryId').text(response.delivery_id);
+                $('#payloadOutput').show();
+            },
+            error: function(xhr) {
+                let errorMessage = 'Unknown error';
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    errorMessage = response.error || errorMessage;
+                } catch (e) {
+                    if (xhr.status === 202) {
+                        // Handle 202 Accepted response
+                        const response = JSON.parse(xhr.responseText);
+                        $('#deliveryId').text(response.delivery_id);
+                        $('#payloadOutput').show();
+                        return;
+                    }
+                }
+                alert('Failed to queue payload: ' + errorMessage);
+            },
+            complete: function() {
+                // Re-enable button and restore original text
+                submitButton.prop('disabled', false).html(originalButtonText);
+            }
+        });
+    });
+
+    // Check Delivery Status
+    $('#checkStatusForm').on('submit', function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: '/api/delivery-status/' + $('#statusDeliveryId').val(),
+            method: 'GET',
+            xhrFields: {
+                withCredentials: true
+            },
+            success: function(response) {
+                $('#deliveryStatus').text(response.status);
+                $('#statusOutput').show();
+            },
+            error: function(xhr) {
+                alert('Failed to check delivery status: ' + JSON.stringify(xhr.responseJSON));
+            }
+        });
+    });
+
+    // View Attempts for Delivery ID
+    $('#viewAttemptsDeliveryForm').on('submit', function(e) {
+        e.preventDefault();
+        const deliveryId = $('#attemptsDeliveryId').val();
+        $.ajax({
+            url: '/api/delivery-attempt-history/' + deliveryId + '/',
+            method: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function(response) {
+                let html = '<h5>Recent Attempts for Delivery ID ' + deliveryId + '</h5>';
+                if (response.length === 0) {
+                    html += '<div class="alert alert-info">No attempts found.</div>';
+                } else {
+                    html += '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr>' +
+                        '<th>Attempt #</th><th>Status</th><th>HTTP Status</th><th>Event Type</th><th>Timestamp</th><th>Error Details</th></tr></thead><tbody>';
+                    response.forEach(function(log) {
+                        html += '<tr>' +
+                            '<td>' + log.attempt_number + '</td>' +
+                            '<td>' + log.status + '</td>' +
+                            '<td>' + (log.http_status_code || '-') + '</td>' +
+                            '<td>' + (log.event_type || '-') + '</td>' +
+                            '<td>' + log.timestamp + '</td>' +
+                            '<td>' + (log.error_details || '-') + '</td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                $('#attemptsDeliveryOutput').html(html).show();
+            },
+            error: function(xhr) {
+                $('#attemptsDeliveryOutput').html('<div class="alert alert-danger">Failed to fetch attempts: ' + (xhr.responseJSON?.error || 'Unknown error') + '</div>').show();
+            }
+        });
+    });
+
+    // View Attempts for Sub ID
+    $('#viewAttemptsSubForm').on('submit', function(e) {
+        e.preventDefault();
+        const subId = $('#attemptsSubId').val();
+        $.ajax({
+            url: '/api/subscription-attempt-history/' + subId + '/',
+            method: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function(response) {
+                let html = '<h5>Recent Attempts for Subscription ID ' + subId + '</h5>';
+                if (response.length === 0) {
+                    html += '<div class="alert alert-info">No attempts found.</div>';
+                } else {
+                    html += '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr>' +
+                        '<th>Attempt #</th><th>Status</th><th>HTTP Status</th><th>Event Type</th><th>Timestamp</th><th>Error Details</th></tr></thead><tbody>';
+                    response.forEach(function(log) {
+                        html += '<tr>' +
+                            '<td>' + log.attempt_number + '</td>' +
+                            '<td>' + log.status + '</td>' +
+                            '<td>' + (log.http_status_code || '-') + '</td>' +
+                            '<td>' + (log.event_type || '-') + '</td>' +
+                            '<td>' + log.timestamp + '</td>' +
+                            '<td>' + (log.error_details || '-') + '</td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                $('#attemptsSubOutput').html(html).show();
+            },
+            error: function(xhr) {
+                $('#attemptsSubOutput').html('<div class="alert alert-danger">Failed to fetch attempts: ' + (xhr.responseJSON?.error || 'Unknown error') + '</div>').show();
+            }
+        });
+    });
+});
+
+function copyUserId() {
+    const userId = $('#userIdDisplay').text();
+    navigator.clipboard.writeText(userId).then(function() {
+        // Show a temporary success message
+        const btn = $('button:contains("Copy")');
+        const originalText = btn.html();
+        btn.html('<i class="fas fa-check"></i> Copied!');
+        setTimeout(() => {
+            btn.html(originalText);
+        }, 2000);
+    });
+}
+
+function copyDeliveryId() {
+    const deliveryId = $('#deliveryId').text();
+    navigator.clipboard.writeText(deliveryId).then(function() {
+        // Show a temporary success message
+        const btn = $('button:contains("Copy")');
+        const originalText = btn.html();
+        btn.html('<i class="fas fa-check"></i> Copied!');
+        setTimeout(() => {
+            btn.html(originalText);
+        }, 2000);
+    });
+}
+
+function copySubscriptionId() {
+    const subscriptionId = $('#subId').text();
+    navigator.clipboard.writeText(subscriptionId).then(function() {
+        // Show a temporary success message
+        const btn = $('button:contains("Copy")');
+        const originalText = btn.html();
+        btn.html('<i class="fas fa-check"></i> Copied!');
+        setTimeout(() => {
+            btn.html(originalText);
+        }, 2000);
+    });
+}
+</script>
+{% endblock %} 

@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-jidlte-2(+14xtvrj3q9p^gv9euo3lcputv3tvae0+aeekb88a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'corsheaders',
     'deliveries',
 ]
 
@@ -58,10 +59,11 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -94,7 +96,7 @@ DATABASES = {
 #     }
 # }
 
-# # Redis if installed using Docker
+# # # Redis if installed using Docker
 # CELERY_BROKER_URL = 'redis://crossbow-redis-1:6379/0'
 # CELERY_RESULT_BACKEND = 'redis://crossbow-redis-1:6379/0'
 
@@ -155,13 +157,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Add REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # Keep this as fallback
+]
+
+
 # Add CORS settings for development
 CORS_ALLOW_ALL_ORIGINS = True  # Only for development
 CORS_ALLOW_CREDENTIALS = True
+
+# Login URL configuration
+LOGIN_URL = '/login/'
+# LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/facilities/'
+LOGOUT_REDIRECT_URL = '/'
+
+# Webhook settings
+WEBHOOK_TIMEOUT = 30  # Timeout in seconds for webhook delivery attempts

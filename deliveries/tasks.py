@@ -6,11 +6,13 @@ from celery.exceptions import MaxRetriesExceededError
 from django.utils import timezone
 from datetime import timedelta
 import logging
+import json
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=5)
-def process_webhook(self, subscription_id, payload, delivery_log_id):
+def process_webhook(self, subscription_id, payload, delivery_log_id, event_type):
     logger.info(f"Processing webhook for subscription {subscription_id}, delivery_log_id: {delivery_log_id}")
     try:
         subscription = Subscription.objects.get(subscription_id=subscription_id)
@@ -23,26 +25,42 @@ def process_webhook(self, subscription_id, payload, delivery_log_id):
         logger.info(f"Current attempt: {current_attempt}")
         
         try:
-            logger.info("Sending POST request to target URL")
-            response = requests.post(url, json=payload, timeout=10)
-            status = 'Success' if response.status_code == 200 else 'Failed Attempt'
-            logger.info(f"Response status code: {response.status_code}")
+            # Add event type to payload
+            payload['event_type'] = event_type
             
-            # Update the existing delivery log
+            # Send webhook
+            response = requests.post(
+                url,
+                json=payload,
+                headers={
+                    'Content-Type': 'application/json',
+                    'X-Event-Type': event_type,
+                    'X-Subscription-ID': subscription_id
+                },
+                timeout=settings.WEBHOOK_TIMEOUT
+            )
+            
+            # Update delivery log
             delivery_log = DeliveryLog.objects.get(id=delivery_log_id)
-            delivery_log.status = status
             delivery_log.http_status_code = response.status_code
-            delivery_log.save()
-            logger.info(f"Updated delivery log status to: {status}")
+            if response.status_code >= 200 and response.status_code < 300:
+                delivery_log.status = 'Success'
+            else:
+                delivery_log.status = 'Failure'
+                delivery_log.error_details = response.text
             
-            if response.status_code != 200:
-                raise Exception(f"Target returned status code {response.status_code}")
-                
-        except Exception as e:
+            delivery_log.save()
+            
+            return {
+                'status': delivery_log.status,
+                'http_status': response.status_code
+            }
+            
+        except requests.RequestException as e:
             logger.error(f"Error processing webhook: {str(e)}")
             # Update the delivery log with failure
             delivery_log = DeliveryLog.objects.get(id=delivery_log_id)
-            delivery_log.status = 'Failed Attempt'
+            delivery_log.status = 'Failure'
             delivery_log.error_details = str(e)
             delivery_log.save()
             
