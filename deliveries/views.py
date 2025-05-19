@@ -258,7 +258,8 @@ def ingest_webhook(request, sub_id):
         # Create delivery log
         delivery_log = DeliveryLog.objects.create(
             subscription=subscription,
-            payload=request.data,
+            attempt_number=1,  # First attempt
+            status='Pending',  # Initial status
             event_type=event_type
         )
         
