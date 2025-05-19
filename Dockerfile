@@ -12,4 +12,4 @@ ENV PORT=8080
 EXPOSE ${PORT}
 
 # Use gunicorn for production, but fallback to Django's development server if needed
-CMD ["sh", "-c", "gunicorn core.wsgi:application --bind 0.0.0.0:${PORT} || python manage.py runserver 0.0.0.0:${PORT}"] 
+CMD ["sh", "-c", "python manage.py migrate && gunicorn core.wsgi:application --bind 0.0.0.0:${PORT} || python manage.py runserver 0.0.0.0:${PORT}"] 
