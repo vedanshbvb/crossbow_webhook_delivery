@@ -248,31 +248,56 @@ def ingest_webhook(request, sub_id):
                     {'error': 'Signature header (X-Hub-Signature-256) is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-                
+            
             if not verify_signature(request.body, signature, subscription.secret_key):
                 return Response(
                     {'error': 'Invalid signature'},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-            
-        # Create initial delivery log
+        
+        # Create delivery log
         delivery_log = DeliveryLog.objects.create(
             subscription=subscription,
-            attempt_number=1,
-            status='Queued',
+            payload=request.data,
             event_type=event_type
         )
+        
+        try:
+            # Try to queue the webhook processing task
+            process_webhook.delay(
+                subscription.subscription_id,
+                request.data,
+                delivery_log.id,
+                event_type
+            )
+            return Response({
+                'status': 'queued',
+                'delivery_id': delivery_log.id
+            })
+        except Exception as e:
+            # If Celery is not available, process synchronously
+            from .tasks import process_webhook
+            result = process_webhook(
+                subscription.subscription_id,
+                request.data,
+                delivery_log.id,
+                event_type
+            )
+            return Response({
+                'status': 'processed',
+                'delivery_id': delivery_log.id,
+                'result': result
+            })
             
-        # Queue the webhook processing task
-        process_webhook.apply_async(args=[sub_id, request.data, delivery_log.id, event_type])
-        return Response({
-            'message': 'Webhook queued for processing',
-            'delivery_id': delivery_log.id
-        }, status=status.HTTP_202_ACCEPTED)
     except Subscription.DoesNotExist:
         return Response(
             {'error': 'Subscription not found'},
             status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 @api_view(['GET'])

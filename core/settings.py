@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,12 +97,18 @@ DATABASES = {
 #     }
 # }
 
-# # # Redis if installed using Docker
-# CELERY_BROKER_URL = 'redis://crossbow-redis-1:6379/0'
-# CELERY_RESULT_BACKEND = 'redis://crossbow-redis-1:6379/0'
+# Redis configuration with fallback
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 
-CELERY_BROKER_URL = 'redis://redis:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+# Only configure Redis if the host is available
+if os.getenv('USE_REDIS', 'false').lower() == 'true':
+    CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+    CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+else:
+    # Use local memory as fallback
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'django-db'
 
 # Comment out the local Redis settings
 # CELERY_BROKER_URL = 'redis://localhost:6379/0'
@@ -176,6 +183,8 @@ CORS_ALLOW_CREDENTIALS = True
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = [
     'https://crossbowimg-616137423630.asia-south2.run.app',
+    'https://35.200.136.252:8080',
+    'https://35.200.136.252:8000',
 ]
 
 # Login URL configuration
