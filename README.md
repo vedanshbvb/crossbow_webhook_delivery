@@ -1,3 +1,3 @@
-Deployment link: https://crossbowimg-616137423630.asia-south2.run.app/
+Deployment link: http://35.200.136.252:8080/
 
 For README, please read README_crossbow.pdf
